@@ -122,8 +122,8 @@ class SrhEdik(QtWidgets.QWidget):#MainWindow):
             self.srhFits.changeSouthPhase(self.sLcpPhaseCorrection, self.sRcpPhaseCorrection)
             self.srhFits.vis2uv(self.currentScan, phaseCorrect=self.phaseCorrect, amplitudeCorrect=self.amplitudeCorrect);
             self.srhFits.uv2lmImage()
-            self.lcpMaxTrace.append(self.srhFits.lcp.real[128-32:128+32,128-32:128+32].max())
-            self.rcpMaxTrace.append(self.srhFits.rcp.real[128-32:128+32,128-32:128+32].max())
+            self.lcpMaxTrace.append(self.srhFits.lcp.real[128-32:128+32,128-32:128+32].mean())
+            self.rcpMaxTrace.append(self.srhFits.rcp.real[128-32:128+32,128-32:128+32].mean())
         self.srhFits.setSizeOfUv(self.uvSize)
         
         phaseIndLcp = int(10*(NP.argmax(self.lcpMaxTrace) - 18) + .5)
