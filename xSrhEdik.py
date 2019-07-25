@@ -848,9 +848,9 @@ class SrhEdik(QtWidgets.QWidget):#MainWindow):
                 self.rcpData /= NP.max(self.rcpData)
     
             pHeader = fits.Header();
-            
-            pHeader['DATE-OBS']     = self.srhFits.hduList[0].header['DATE-OBS']
-            pHeader['T-OBS']     = self.srhFits.hduList[0].header['DATE-OBS'] + 'T' + phaseEdit.timeList.itemText(scan)#self.srhFits.hduList[0].header['TIME-OBS']
+            t = self.srhFits.hduList[0].header['DATE-OBS']
+            pHeader['DATE-OBS']     = t.split('/')[0]+'-'+t.split('/')[1]+'-'+t.split('/')[2] + 'T' + phaseEdit.timeList.itemText(scan)
+            pHeader['T-OBS']     = t.split('/')[0]+'-'+t.split('/')[1]+'-'+t.split('/')[2] + 'T' + phaseEdit.timeList.itemText(scan)#self.srhFits.hduList[0].header['TIME-OBS']
             pHeader['INSTRUME']     = self.srhFits.hduList[0].header['INSTRUME']
             pHeader['ORIGIN']       = self.srhFits.hduList[0].header['ORIGIN']
             pHeader['OBS-LAT']      = self.srhFits.hduList[0].header['OBS-LAT']
