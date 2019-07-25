@@ -8,7 +8,7 @@ Created on Wed May  2 10:36:23 2018
 
 import sys;
 from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QTabWidget, QVBoxLayout, QGridLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as NP
@@ -16,9 +16,9 @@ from srhFitsFile import SrhFitsFile
 from skimage.transform import warp, AffineTransform
 from astropy.io import fits
 from astropy.time import Time, TimeDelta
-#import casacore.tables as T
-#import base2uvw as bl2uvw
-#import srhMS2
+import casacore.tables as T
+import base2uvw as bl2uvw
+import srhMS2
 from mpl_toolkits.mplot3d import Axes3D
 import pylab as PL
 from scipy.signal import argrelextrema
@@ -81,7 +81,7 @@ class ResponseCanvas(FigureCanvas):
     def setColormap(self, cmap):
         self.cmap = cmap
 
-class SrhEdik(QtWidgets.QMainWindow):
+class SrhEdik(QtWidgets.QWidget):#MainWindow):
     def buildEwPhase(self):
         self.ewLcpPhaseCorrection[:] = 0.
         self.ewRcpPhaseCorrection[:] = 0.
@@ -189,9 +189,14 @@ class SrhEdik(QtWidgets.QMainWindow):
         else:
             self.lcpCanvas.setData(NP.abs(self.srhFits.uvLcp)**.5 *self.imageScale + self.imageOffset)
             self.rcpCanvas.setData(NP.abs(self.srhFits.uvRcp)**.5 *self.imageScale + self.imageOffset)
-
-        self.lcpMaxTrace.append(NP.max(self.srhFits.lcp.real))
-        self.rcpMaxTrace.append(NP.max(self.srhFits.rcp.real))
+            
+            
+        lcpCorr = NP.mean(NP.abs(self.srhFits.visLcp[self.currentFrequencyChannel, self.currentScan, :512]))
+        rcpCorr = NP.mean(NP.abs(self.srhFits.visRcp[self.currentFrequencyChannel, self.currentScan, :512]))
+        self.lcpMaxTrace.append(lcpCorr + rcpCorr)
+        self.rcpMaxTrace.append(lcpCorr - rcpCorr)
+#        self.lcpMaxTrace.append(NP.max(self.srhFits.lcp.real))
+#        self.rcpMaxTrace.append(NP.max(self.srhFits.rcp.real))
 #        self.lcpMaxTrace.append(NP.max(self.srhFits.lcp.real) - NP.min(self.srhFits.lcp.real))
 #        self.rcpMaxTrace.append(NP.max(self.srhFits.rcp.real) - NP.min(self.srhFits.rcp.real))
 #        self.lcpMaxTrace.append(self.srhFits.lcp.real[128-32:128+32,128-32:128+32].mean())
@@ -199,12 +204,8 @@ class SrhEdik(QtWidgets.QMainWindow):
 
         self.lcpMaxCanvas.clear()
         self.rcpMaxCanvas.clear()
-        if self.imageCenteringButton.isChecked():
-            self.lcpMaxCanvas.scatter(self.lcpMaxTrace)
-            self.rcpMaxCanvas.scatter(self.rcpMaxTrace)
-        else:
-            self.lcpMaxCanvas.plot(self.lcpMaxTrace)
-            self.rcpMaxCanvas.plot(self.rcpMaxTrace)
+        self.lcpMaxCanvas.plot(self.lcpMaxTrace)
+        self.rcpMaxCanvas.plot(self.rcpMaxTrace)
         
     def onEastWestLcpPhaseSlopeChanged(self, value):
         self.ewLcpPhaseSlope[self.currentFrequencyChannel] = value
@@ -437,14 +438,14 @@ class SrhEdik(QtWidgets.QMainWindow):
         else:
             event.ignore()        
         
-    def resizeEvent(self, event):
-        width = event.size().width() // 2
-        height = event.size().height()
-        self.lcpCanvas.setGeometry(0, 50, width, width)
-        self.rcpCanvas.setGeometry(width, 50, width, width)
-        self.lcpMaxCanvas.setGeometry(0,width + 50,width, height - width - 50)
-        self.rcpMaxCanvas.setGeometry(width,width + 50,width, height - width - 50)
-        
+#    def resizeEvent(self, event):
+#        width = event.size().width() // 2
+#        height = event.size().height()
+#        self.lcpCanvas.setGeometry(0, 50, width, width)
+#        self.rcpCanvas.setGeometry(width, 50, width, width)
+#        self.lcpMaxCanvas.setGeometry(0,width + 50,width, height - width - 50)
+#        self.rcpMaxCanvas.setGeometry(width,width + 50,width, height - width - 50)
+#        
     def antennasPhases(self):
         ewPhases = NP.zeros((self.srhFits.dataLength,2, 32))
         sPhases = NP.zeros((self.srhFits.dataLength,2, 16))
@@ -491,7 +492,7 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.animTimer = QtCore.QTimer(self)
         self.animTimer.timeout.connect(self.onAnimTimer)
         
-        self.setGeometry(100,100,1024,700)
+#        self.setGeometry(100,100,1024,700)
         self.openButton = QtWidgets.QPushButton('Open...', self)
         self.openButton.clicked.connect(self.onOpen)
 
@@ -501,10 +502,10 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.findPhaseButton = QtWidgets.QPushButton('Find phase', self)
         self.findPhaseButton.clicked.connect(self.onFindPhase)
 
-        self.ewPhaseStairLcp = QtWidgets.QSpinBox(self, prefix='EWL ')
+        self.ewPhaseStairLcp = QtWidgets.QSpinBox(self, prefix='EW L ')
         self.ewPhaseStairLcp.setRange(-180,180)
         self.ewPhaseStairLcp.valueChanged.connect(self.onEastWestPhaseStairLcpChanged)
-        self.ewPhaseStairRcp = QtWidgets.QSpinBox(self, prefix='EWR ')
+        self.ewPhaseStairRcp = QtWidgets.QSpinBox(self, prefix='EW R ')
         self.ewPhaseStairRcp.setRange(-180,180)
         self.ewPhaseStairRcp.valueChanged.connect(self.onEastWestPhaseStairRcpChanged)
 
@@ -513,10 +514,10 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.ewPhaseStairLength.setValue(16)
         self.ewPhaseStairLength.valueChanged.connect(self.onEwPhaseStairLengthChanged)
 
-        self.sPhaseStairLcp = QtWidgets.QSpinBox(self, prefix='SL ')
+        self.sPhaseStairLcp = QtWidgets.QSpinBox(self, prefix='S L ')
         self.sPhaseStairLcp.setRange(-180,180)
         self.sPhaseStairLcp.valueChanged.connect(self.onSouthPhaseStairLcpChanged)
-        self.sPhaseStairRcp = QtWidgets.QSpinBox(self, prefix='SR ')
+        self.sPhaseStairRcp = QtWidgets.QSpinBox(self, prefix='S R ')
         self.sPhaseStairRcp.setRange(-180,180)
         self.sPhaseStairRcp.valueChanged.connect(self.onSouthPhaseStairRcpChanged)
 
@@ -526,15 +527,15 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.sPhaseStairLength.valueChanged.connect(self.onSPhaseStairLengthChanged)
 
         self.lcpCanvas = ResponseCanvas(self)
-        self.lcpCanvas.mouseSignal.connect(self.onCanvasXyChanged)
+#        self.lcpCanvas.mouseSignal.connect(self.onCanvasXyChanged)
         self.lcpMaxCanvas = ResponseCanvas(self)
         self.rcpCanvas = ResponseCanvas(self)
-        self.rcpCanvas.mouseSignal.connect(self.onCanvasXyChanged)
+#        self.rcpCanvas.mouseSignal.connect(self.onCanvasXyChanged)
         self.rcpMaxCanvas = ResponseCanvas(self)
 
         self.clearButton = QtWidgets.QPushButton('Clear trace', self)
         self.clearButton.clicked.connect(self.onClear)
-        
+#        
         self.imageUpdateButton = QtWidgets.QPushButton('Update', self)
         self.imageUpdateButton.setCheckable(True)
         self.imageUpdateButton.setChecked(True)
@@ -548,28 +549,28 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.frequencyList.currentIndexChanged.connect(self.onFrequencyListSelected)
         self.timeList = QtWidgets.QComboBox(self)
         self.timeList.currentIndexChanged.connect(self.onTimeListSelected)
-        
+#        
         self.scan = QtWidgets.QSpinBox(self, prefix='scan ')
         self.scan.setRange(0,0)
         self.scan.valueChanged.connect(self.onScanChanged)
 
-        self.calibScan = QtWidgets.QSpinBox(self, prefix='c_scan ')
+        self.calibScan = QtWidgets.QSpinBox(self, prefix='calib_scan ')
         self.calibScan.setRange(0,0)
         self.calibScan.valueChanged.connect(self.onCalibScanChanged)
 
-        self.ewLcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix = 'EWLS ')
+        self.ewLcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix = 'EW LCP Slope ')
         self.ewLcpPhaseSlopeSpin.setRange(-180.,180.)
         self.ewLcpPhaseSlopeSpin.valueChanged.connect(self.onEastWestLcpPhaseSlopeChanged)
 
-        self.ewRcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix='EWRS ')
+        self.ewRcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix='EW RCP Slope ')
         self.ewRcpPhaseSlopeSpin.setRange(-180.,180.)
         self.ewRcpPhaseSlopeSpin.valueChanged.connect(self.onEastWestRcpPhaseSlopeChanged)
 
-        self.sLcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix='SLS ')
+        self.sLcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix='S LCP Slope ')
         self.sLcpPhaseSlopeSpin.setRange(-180.,180.)
         self.sLcpPhaseSlopeSpin.valueChanged.connect(self.onSouthLcpPhaseSlopeChanged)
 
-        self.sRcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix='SRS ')
+        self.sRcpPhaseSlopeSpin = QtWidgets.QSpinBox(self, prefix='S RCP Slope ')
         self.sRcpPhaseSlopeSpin.setRange(-180.,180.)
         self.sRcpPhaseSlopeSpin.valueChanged.connect(self.onSouthRcpPhaseSlopeChanged)
 
@@ -611,7 +612,7 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.typeOfImage.addItem('PSF')
         self.typeOfImage.addItem('IV + PSF')
         
-        self.lcpRcpRelation = QtWidgets.QDoubleSpinBox (self)
+        self.lcpRcpRelation = QtWidgets.QDoubleSpinBox (self, prefix = 'LCP/RCP ')
         self.lcpRcpRelation.setSingleStep(0.01)
         self.lcpRcpRelation.setRange(0.,2.)
         self.lcpRcpRelation.valueChanged.connect(self.onLcpRcpRelationChanged)
@@ -621,80 +622,155 @@ class SrhEdik(QtWidgets.QMainWindow):
         self.ewAntenna.setRange(49,80)
         self.ewAntenna.valueChanged.connect(self.onEwAntennaChanged)
 
-        self.ewLcpAntennaPhase = QtWidgets.QSpinBox(self)
+        self.ewLcpAntennaPhase = QtWidgets.QSpinBox(self, prefix = 'LCP phase ')
         self.ewLcpAntennaPhase.setRange(-180,180)
         self.ewLcpAntennaPhase.valueChanged.connect(self.onEwLcpAntennaPhaseChanged)
 
-        self.sLcpAntennaPhase = QtWidgets.QSpinBox(self)
+        self.sLcpAntennaPhase = QtWidgets.QSpinBox(self, prefix = 'LCP phase ')
         self.sLcpAntennaPhase.setRange(-180,180)
         self.sLcpAntennaPhase.valueChanged.connect(self.onSLcpAntennaPhaseChanged)
 
-        self.ewRcpAntennaPhase = QtWidgets.QSpinBox(self)
+        self.ewRcpAntennaPhase = QtWidgets.QSpinBox(self, prefix = 'RCP phase ')
         self.ewRcpAntennaPhase.setRange(-180,180)
         self.ewRcpAntennaPhase.valueChanged.connect(self.onEwRcpAntennaPhaseChanged)
 
-        self.sRcpAntennaPhase = QtWidgets.QSpinBox(self)
+        self.sRcpAntennaPhase = QtWidgets.QSpinBox(self, prefix = 'RCP phase ')
         self.sRcpAntennaPhase.setRange(-180,180)
         self.sRcpAntennaPhase.valueChanged.connect(self.onSRcpAntennaPhaseChanged)
 
         self.sAntenna = QtWidgets.QSpinBox(self, prefix='S_ant ')
         self.sAntenna.setRange(177,192)
-        self.sAntenna.valueChanged.connect(self.onSAntennaChanged)
+        self.sAntenna.valueChanged.connect(self.onSAntennaChanged)                          
 
-        self.openButton.setGeometry(0,0,60,25)
-        self.frequencyChannel.setGeometry(70,0,80,25)
-        self.scan.setGeometry(70,25,80,25)
-        self.calibScan.setGeometry(150,0,80,25)
-        self.clearButton.setGeometry(150,25,80,25)
-        self.ewPhaseStairLcp.setGeometry(235,0,70,25)
-        self.ewPhaseStairRcp.setGeometry(305,0,70,25)
-        self.ewPhaseStairLength.setGeometry(235,25,140,25)
-
-        self.sPhaseStairLcp.setGeometry(375,0,70,25)
-        self.sPhaseStairRcp.setGeometry(445,0,70,25)
-        self.sPhaseStairLength.setGeometry(375,25,140,25)
-
-        self.ewLcpPhaseSlopeSpin.setGeometry(500,0,80,25)
-        self.sLcpPhaseSlopeSpin.setGeometry(500,25,80,25)
-        self.ewRcpPhaseSlopeSpin.setGeometry(580,0,80,25)
-        self.sRcpPhaseSlopeSpin.setGeometry(580,25,80,25)
-
-        self.phaseCorrectButton.setGeometry(660,0,60,25)
-        self.amplitudeCorrectButton.setGeometry(660,25,60,25)
+        layout = QGridLayout()
+        self.setLayout(layout)
         
-        self.typeOfFrame.setGeometry(720,0,60,25)
-        
-        self.imageAnimateButton.setGeometry(720,25,60,25)
-
-        self.imageOffsetSlider.setGeometry(780,0,60,25)
-        self.imageScaleSlider.setGeometry(780,25,60,25)
-        self.findPhaseButton.setGeometry(840,0,60,25)
-        self.imageUpdateButton.setGeometry(840,25,60,25)
-        self.frequencyList.setGeometry(900, 0, 100, 25)
-        self.timeList.setGeometry(900, 25, 100, 25)
-        
-        self.typeOfImage.setGeometry(1000, 0, 100, 25)
-        self.lcpRcpRelation.setGeometry(1000, 25, 100, 25)
-
-        self.ewAntenna.setGeometry(1160, 0, 80, 25)
-        self.sAntenna.setGeometry(1160, 25, 80, 25)
-        self.ewLcpAntennaPhase.setGeometry(1240, 0, 50, 25)
-        self.sLcpAntennaPhase.setGeometry(1240, 25, 50, 25)
-        self.ewRcpAntennaPhase.setGeometry(1290, 0, 50, 25)
-        self.sRcpAntennaPhase.setGeometry(1290, 25, 50, 25)
-
-        self.saveButton.setGeometry(0,25,60,25)
-        
-        self.lcpCanvas.setGeometry(0,50,512,512)
-        self.lcpMaxCanvas.setGeometry(0,560,512,100)
-        self.rcpCanvas.setGeometry(512,50,512,512)
-        self.rcpMaxCanvas.setGeometry(512,560,512,100)
+        self.tabs = QTabWidget()
+        self.tabs.setFixedHeight(100)
+        self.tab1 = QtWidgets.QWidget()
+        self.tab2 = QtWidgets.QWidget()
+        self.tab3 = QtWidgets.QWidget()
+        self.tab4 = QtWidgets.QWidget()
+        #self.tabs.resize(1024,50)
         
         
-#        self.lcpCanvas.setGeometry(0,50,1000,1000)
-#        self.lcpMaxCanvas.setGeometry(0,1060,512,100)
-#        self.rcpCanvas.setGeometry(512,1050,512,512)
-#        self.rcpMaxCanvas.setGeometry(512,1560,512,100)
+        self.tabs.addTab(self.tab1,"General")
+        self.tabs.addTab(self.tab2,"Phase&Amp Correction")
+        self.tabs.addTab(self.tab3,"Centering")
+        self.tabs.addTab(self.tab4,"Save...")
+        
+        self.tab1.layout = QGridLayout(self)
+        self.tab1.layout.setSpacing(1)
+        self.tab1.layout.setVerticalSpacing(1)
+        self.tab1.layout.addWidget(self.openButton, 0, 0)
+        self.tab1.layout.addWidget(self.frequencyChannel, 0, 1)
+        self.tab1.layout.addWidget(self.scan, 1, 1)
+        self.tab1.layout.addWidget(self.frequencyList, 0, 2)
+        self.tab1.layout.addWidget(self.timeList, 1, 2)
+        self.tab1.layout.addWidget(self.calibScan, 0, 3)
+        self.tab1.layout.addWidget(self.clearButton, 1, 3)
+        self.tab1.layout.addWidget(self.findPhaseButton, 0, 4)
+        self.tab1.layout.addWidget(self.imageUpdateButton, 1, 4)
+        self.tab1.layout.addWidget(self.phaseCorrectButton, 0, 5)
+        self.tab1.layout.addWidget(self.amplitudeCorrectButton, 1, 5)
+        self.tab1.layout.addWidget(self.typeOfFrame, 0, 6)
+        self.tab1.layout.addWidget(self.typeOfImage, 1, 6)
+        self.tab1.layout.addWidget(self.lcpRcpRelation, 0, 7)
+        self.tab1.layout.addWidget(self.imageAnimateButton, 1, 7)
+        self.tab1.layout.addWidget(self.imageOffsetSlider, 0, 8)
+        self.tab1.layout.addWidget(self.imageScaleSlider, 1, 8)
+        self.tab1.setLayout(self.tab1.layout)
+        
+        self.tab2.layout = QGridLayout(self)
+        self.tab2.layout.setSpacing(1)
+        self.tab2.layout.setVerticalSpacing(1)
+        self.tab2.layout.addWidget(self.ewPhaseStairLength, 0, 0)
+        self.tab2.layout.addWidget(self.ewPhaseStairLcp, 0, 1)
+        self.tab2.layout.addWidget(self.ewPhaseStairRcp, 1, 1)
+        self.tab2.layout.addWidget(self.sPhaseStairLength, 0, 2)
+        self.tab2.layout.addWidget(self.sPhaseStairLcp, 0, 3)
+        self.tab2.layout.addWidget(self.sPhaseStairRcp, 1, 3)
+        self.tab2.layout.addWidget(self.ewAntenna, 0, 4)
+        self.tab2.layout.addWidget(self.ewLcpAntennaPhase, 0, 5)
+        self.tab2.layout.addWidget(self.ewRcpAntennaPhase, 0, 6)
+        self.tab2.layout.addWidget(self.sAntenna, 1, 4)
+        self.tab2.layout.addWidget(self.sLcpAntennaPhase, 1, 5)
+        self.tab2.layout.addWidget(self.sRcpAntennaPhase, 1, 6)
+        self.tab2.setLayout(self.tab2.layout)
+        
+        self.tab3.layout = QGridLayout(self)
+        self.tab3.layout.setSpacing(1)
+        self.tab3.layout.setVerticalSpacing(1)
+        self.tab3.layout.addWidget(self.ewLcpPhaseSlopeSpin, 0, 0)
+        self.tab3.layout.addWidget(self.ewRcpPhaseSlopeSpin, 0, 1)
+        self.tab3.layout.addWidget(self.sLcpPhaseSlopeSpin, 1, 0)
+        self.tab3.layout.addWidget(self.sRcpPhaseSlopeSpin, 1, 1)
+        self.tab3.setLayout(self.tab3.layout)
+                
+        self.tab4.layout = QGridLayout(self)
+        self.tab4.layout.setSpacing(1)
+        self.tab4.layout.setVerticalSpacing(1)
+        self.tab4.layout.addWidget(self.saveButton, 0, 0)
+        self.tab4.setLayout(self.tab4.layout)
+        
+        
+        self.lcpCanvas.setMinimumSize(500,500)
+        self.rcpCanvas.setMinimumSize(500,500)
+        layout.addWidget(self.tabs,0,0,1,2)
+        layout.addWidget(self.lcpCanvas,3,0)
+        layout.addWidget(self.rcpCanvas,3,1)
+        layout.addWidget(self.lcpMaxCanvas,13,0,5,1)
+        layout.addWidget(self.rcpMaxCanvas,13,1,5,1)
+#        self.setLayout(self.layout)
+
+#        self.openButton.setGeometry(0,0,60,25)
+#        self.frequencyChannel.setGeometry(70,0,80,25)
+#        self.scan.setGeometry(70,25,80,25)
+#        self.calibScan.setGeometry(150,0,80,25)
+#        self.clearButton.setGeometry(150,25,80,25)
+#        self.ewPhaseStairLcp.setGeometry(235,0,70,25)
+#        self.ewPhaseStairRcp.setGeometry(305,0,70,25)
+#        self.ewPhaseStairLength.setGeometry(235,25,140,25)
+#
+#        self.sPhaseStairLcp.setGeometry(375,0,70,25)
+#        self.sPhaseStairRcp.setGeometry(445,0,70,25)
+#        self.sPhaseStairLength.setGeometry(375,25,140,25)
+#
+#        self.ewLcpPhaseSlopeSpin.setGeometry(500,0,80,25)
+#        self.sLcpPhaseSlopeSpin.setGeometry(500,25,80,25)
+#        self.ewRcpPhaseSlopeSpin.setGeometry(580,0,80,25)
+#        self.sRcpPhaseSlopeSpin.setGeometry(580,25,80,25)
+#
+#        self.phaseCorrectButton.setGeometry(660,0,60,25)
+#        self.amplitudeCorrectButton.setGeometry(660,25,60,25)
+#        
+#        self.typeOfFrame.setGeometry(720,0,60,25)
+#        
+#        self.imageAnimateButton.setGeometry(720,25,60,25)
+#
+#        self.imageOffsetSlider.setGeometry(780,0,60,25)
+#        self.imageScaleSlider.setGeometry(780,25,60,25)
+#        self.findPhaseButton.setGeometry(840,0,60,25)
+#        self.imageUpdateButton.setGeometry(840,25,60,25)
+#        self.frequencyList.setGeometry(900, 0, 100, 25)
+#        self.timeList.setGeometry(900, 25, 100, 25)
+#        
+#        self.typeOfImage.setGeometry(1000, 0, 100, 25)
+#        self.lcpRcpRelation.setGeometry(1000, 25, 100, 25)
+#
+#        self.ewAntenna.setGeometry(1160, 0, 80, 25)
+#        self.sAntenna.setGeometry(1160, 25, 80, 25)
+#        self.ewLcpAntennaPhase.setGeometry(1240, 0, 50, 25)
+#        self.sLcpAntennaPhase.setGeometry(1240, 25, 50, 25)
+#        self.ewRcpAntennaPhase.setGeometry(1290, 0, 50, 25)
+#        self.sRcpAntennaPhase.setGeometry(1290, 25, 50, 25)
+#
+#        self.saveButton.setGeometry(0,25,60,25)
+#        
+#        self.lcpCanvas.setGeometry(0,50,512,512)
+#        self.lcpMaxCanvas.setGeometry(0,560,512,100)
+#        self.rcpCanvas.setGeometry(512,50,512,512)
+#        self.rcpMaxCanvas.setGeometry(512,560,512,100)
 
     def onOpen(self):
         fitsNames, _ = QtWidgets.QFileDialog.getOpenFileNames(self)        
